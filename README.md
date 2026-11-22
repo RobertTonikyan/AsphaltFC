@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://skillicons.dev/icons?i=html,css,js,supabase,postgres,netlify&theme=dark" alt="HTML, CSS, JavaScript, Supabase, PostgreSQL, Netlify">
+  <img src="https://skillicons.dev/icons?i=html,css,js,supabase,postgres,cloudflare&theme=dark" alt="HTML, CSS, JavaScript, Supabase, PostgreSQL, Cloudflare">
 </p>
 
 <p align="center">
@@ -73,7 +73,7 @@ A little noise on each rating means **Split again** gives a different but equall
 | Type | Rubik Dirt for display, IBM Plex Sans Hebrew for text and numbers |
 | Back end | Supabase (PostgreSQL). A single `asphalt_groups` table behind `SECURITY DEFINER` functions. Row level security is on and the table is never exposed directly. |
 | Auth model | Manager secret (stored hashed with SHA-256) in the manager link; a separate random code for the player link |
-| Hosting | Netlify static hosting with SPA routes for `/m/*` and `/v/*` |
+| Hosting | Static hosting on Cloudflare (or Netlify) with SPA routes for `/m/*` and `/v/*` |
 | App shell | Web app manifest, home-screen icons, Screen Wake Lock, Web Audio whistle |
 
 ## Project structure
@@ -88,9 +88,11 @@ web/
   icons/                app icons and share image
   manifest.webmanifest
   _redirects            SPA routes
+  _headers              security and cache headers
 supabase/migrations/    database table and functions
 docs/screenshots/       images used in this README
-netlify.toml            publish folder and headers
+wrangler.jsonc          Cloudflare config
+netlify.toml            Netlify publish folder
 ```
 
 ## Running locally
@@ -116,7 +118,12 @@ Apply the migration in `supabase/migrations/` to your Supabase project (SQL edit
 
 ## Deploying
 
-Connect the repository to Netlify. `netlify.toml` already sets the publish folder to `web`, so no build command is needed.
+The site is plain static files in `web/`, so no build step is needed.
+
+- **Cloudflare:** connect the repository in Workers & Pages. `wrangler.jsonc` serves `web/` and falls back to `index.html` for app routes, and the deploy command is `npx wrangler deploy`.
+- **Netlify:** connect the repository. `netlify.toml` sets the publish folder to `web`.
+
+Routes live in `web/_redirects` and security headers in `web/_headers`; both hosts read them.
 
 ## Version history
 
