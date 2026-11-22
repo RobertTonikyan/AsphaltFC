@@ -14,6 +14,10 @@
 </p>
 
 <p align="center">
+  <a href="https://asphaltfc.football.workers.dev"><b>Open the app ↗</b></a>
+</p>
+
+<p align="center">
   <img alt="PWA" src="https://img.shields.io/badge/PWA-installable-FFA586?style=flat-square&labelColor=161E2F">
   <img alt="RTL" src="https://img.shields.io/badge/UI-Hebrew%20%C2%B7%20RTL-FFA586?style=flat-square&labelColor=161E2F">
   <img alt="No build step" src="https://img.shields.io/badge/build-none-FFA586?style=flat-square&labelColor=161E2F">
