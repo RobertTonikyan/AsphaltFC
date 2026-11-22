@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="https://asphaltfc.football.workers.dev"><b>Open the app ↗</b></a>
+  <a href="[https://asphaltfc.football.workers.dev](https://asphaltfc.playfootball.workers.dev/)"><b>Open the app ↗</b></a>
 </p>
 
 <p align="center">
