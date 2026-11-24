@@ -177,3 +177,37 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 @media (prefers-reduced-motion:reduce){.spinner{animation-duration:2.4s}}
 .push{margin-inline-start:auto}
 
+
+/* sign-ups: player link form, "coming today" list and the manager's rating queue */
+.summary .linkbtn{font-size:.86rem;font-weight:500;color:var(--muted)}
+.summary .linkbtn.confirm{color:var(--danger);font-weight:700}
+.signups{background:var(--surface);border-radius:var(--r);border-top:6px solid var(--hi);padding:14px 14px 4px;margin-bottom:16px}
+.signups-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.signups h2{font-size:1.5rem}
+.signups-head .num{font-weight:700;font-size:1.5rem;color:var(--hi)}
+.signups p{color:var(--muted);margin:6px 0 4px;font-size:.92rem}
+.signups ul{list-style:none;margin:0;padding:0}
+.signups li{display:grid;grid-template-columns:1fr auto;grid-template-areas:"name rate" "pos acts";align-items:center;column-gap:12px;row-gap:4px;padding:10px 0;border-top:1px solid var(--line)}
+.signups .pos select{color:var(--ink)}
+.signups .acts{grid-area:acts;display:flex;align-items:center;gap:4px;justify-self:end}
+.btn.sm{min-height:38px;padding:0 12px;font-size:.92rem}
+.signup{margin-top:6px}
+.player-title+*,.teams+.signup{margin-top:18px}
+.teams+.signup{border-top:1px solid var(--line);padding-top:18px}
+.signup>h2{font-size:2rem}
+.signup>p{color:var(--muted);margin:6px 0 12px}
+form.reg{grid-template-columns:1fr}
+form.reg .btn.wide{width:100%;min-height:54px;font-size:1.1rem}
+.signup-done{display:flex;align-items:center;gap:12px;background:var(--surface);border-radius:var(--r);border-inline-start:6px solid var(--hi);padding:14px}
+.signup-done b{display:block;font-size:1.1rem}
+.signup-done span{color:var(--muted)}
+.signup-done .acts{margin-inline-start:auto;display:flex;flex-direction:column;align-items:flex-end}
+.tick{flex:none;width:28px;height:28px;background:var(--hi);clip-path:polygon(12% 52%,0 66%,38% 100%,100% 22%,86% 8%,38% 70%)}
+.coming{margin-top:20px}
+.coming h3{font-family:var(--body);font-weight:700;font-size:1.05rem;color:var(--muted);margin:0 0 6px;display:flex;gap:8px;align-items:baseline}
+.coming h3 .num{color:var(--ink)}
+.coming ul{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.coming li{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line);font-weight:500}
+.coming li.me{color:var(--hi);font-weight:700}
+.summary .linkbtn{white-space:nowrap}
+.coming ul{display:grid;grid-template-columns:1fr 1fr;column-gap:16px}

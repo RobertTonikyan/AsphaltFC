@@ -51,13 +51,20 @@ function demoRow() {
       players: SAMPLE.map(([name, rating, pos], i) => ({ id: 's' + i, name, rating, pos, here: i < 21 })),
       teams: 4, size: 5, dur: 8, result: null, game: null,
     },
+    signups: [
+      { id: 'rd1', name: 'אליה', pos: 'att' },
+      { id: 'rd2', name: 'מתן', pos: 'gk' },
+      { id: 'rd3', name: 'שגיא', pos: 'mid' },
+    ],
   };
 }
+const norm = (n) => String(n || '').trim().toLowerCase();
+const publicSignups = (r) => (r.signups || []).map(({ id, name, pos }) => ({ id, name, pos }));
 function demoSave(row) { try { localStorage.setItem(DEMO_KEY, JSON.stringify(row)); } catch (e) { /* ignore */ } }
 const nowIso = () => new Date().toISOString();
 function publicState(s) {
   return {
-    players: (s.players || []).map(({ id, name, pos }) => ({ id, name, pos })),
+    players: (s.players || []).map(({ id, name, pos, here }) => ({ id, name, pos, here: !!here })),
     result: s.result ? (({ spread, ...r }) => r)(s.result) : null,
     game: s.game || null,
   };
@@ -70,24 +77,52 @@ export async function createGroup(name) {
 }
 
 export async function loadGroup(id, secret) {
-  if (DEMO) { const r = demoRow(); return { id: r.id, name: r.name, view_code: r.view_code, state: r.state, now: nowIso() }; }
+  if (DEMO) { const r = demoRow(); return { id: r.id, name: r.name, view_code: r.view_code, state: r.state, signups: r.signups || [], now: nowIso() }; }
   return rpc('asphalt_admin_get', { p_id: id, p_secret: secret });
 }
 
-export async function saveGroup(id, secret, state, name) {
-  if (DEMO) { const r = demoRow(); r.state = state; if (name) r.name = name; demoSave(r); return { now: nowIso() }; }
-  return rpc('asphalt_admin_save', { p_id: id, p_secret: secret, p_state: state, p_name: name || null });
+/** `taken`: ids of sign-ups handled in this save (added to the squad or dismissed). */
+export async function saveGroup(id, secret, state, name, taken) {
+  if (DEMO) {
+    const r = demoRow(); r.state = state; if (name) r.name = name;
+    if (taken && taken.length) r.signups = (r.signups || []).filter((x) => !taken.includes(x.id));
+    demoSave(r); return { now: nowIso() };
+  }
+  return rpc('asphalt_admin_save', { p_id: id, p_secret: secret, p_state: state, p_name: name || null, p_taken: taken && taken.length ? taken : null });
 }
 
 export async function viewGroup(code) {
-  if (DEMO) { const r = demoRow(); return { name: r.name, state: publicState(r.state), now: nowIso() }; }
+  if (DEMO) { const r = demoRow(); return { name: r.name, state: publicState(r.state), signups: publicSignups(r), now: nowIso() }; }
   return rpc('asphalt_view', { p_code: code });
+}
+
+/** A player signs up from the player link with a name and a position. */
+export async function registerPlayer(code, name, pos) {
+  if (DEMO) {
+    const r = demoRow();
+    r.signups = r.signups || [];
+    const known = (r.state.players || []).find((p) => norm(p.name) === norm(name));
+    const same = r.signups.find((x) => norm(x.name) === norm(name));
+    const shown = known ? known.name : name.trim();
+    let id;
+    if (same) { same.pos = pos; id = same.id; }
+    else { id = 'r' + Math.random().toString(36).slice(2, 10); r.signups.push({ id, name: shown, pos, pid: known && known.id }); }
+    demoSave(r);
+    return { id, name: shown, pos, known: !!known, now: nowIso() };
+  }
+  return rpc('asphalt_register', { p_code: code, p_name: name, p_pos: pos });
+}
+
+export async function unregisterPlayer(code, id) {
+  if (DEMO) { const r = demoRow(); r.signups = (r.signups || []).filter((x) => x.id !== id); demoSave(r); return { now: nowIso() }; }
+  return rpc('asphalt_unregister', { p_code: code, p_id: id });
 }
 
 export const ERR = {
   not_admin: 'קישור הניהול לא תקף. בדקו שהעתקתם אותו במלואו.',
   bad_link: 'הקישור לא תקף. בקשו מהמארגן קישור חדש.',
   bad_input: 'משהו בפרטים לא תקין. בדקו את השם ונסו שוב.',
+  full: 'רשימת ההרשמה מלאה. דברו עם המארגן.',
 };
 export const errText = (e) =>
   ERR[e && e.code] || (navigator.onLine === false ? 'אין חיבור לאינטרנט. מנסה שוב.' : 'משהו השתבש. נסו שוב.');
