@@ -81,7 +81,7 @@ A little noise on each rating means **Split again** gives a different but equall
 | --- | --- |
 | Front end | Plain HTML, CSS and JavaScript modules. No framework and no build step. |
 | Type | Rubik Dirt for display, IBM Plex Sans Hebrew for text and numbers |
-| Back end | Supabase (PostgreSQL). A single `asphalt_groups` table behind `SECURITY DEFINER` functions. Row level security is on and the table is never exposed directly. |
+| Back end | Supabase (PostgreSQL). `asphalt_groups` (one row per group: settings, split, draw, clock) and `asphalt_players` (one row per player) behind `SECURITY DEFINER` functions. Row level security is on and the tables are never exposed directly. |
 | Auth model | Manager secret (stored hashed with SHA-256) in the manager link; a separate random code for the player link |
 | Hosting | Static hosting on Cloudflare (or Netlify) with SPA routes for `/m/*` and `/v/*` |
 | App shell | Web app manifest, home-screen icons, Screen Wake Lock, Web Audio whistle |
@@ -118,6 +118,8 @@ Add `?demo` to any URL to use a local sample group instead of the server, for ex
 ## Database
 
 Apply the migrations in `supabase/migrations/` in order to your Supabase project (SQL editor or `supabase db push`), then set `SB_URL` and `SB_KEY` in `web/src/api.js` to your project URL and publishable key. The functions are:
+
+Players live in `asphalt_players`, one row per player: `status` is `squad` (rated, in the squad) or `pending` (signed up from the player link, waiting for a rating), and `coming` marks who is coming to the next game. The `asphalt_players_list` view shows the same rows with the group name, which is handy in the Supabase Table Editor.
 
 | Function | Who calls it | What it does |
 | --- | --- | --- |
