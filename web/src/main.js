@@ -1,4 +1,4 @@
-import { POS, LIMITS, bib, bibStyle, plan, balance, shuffle, makeDraw, applyWin, applyTie } from './teams.js';
+import { POS, normPos, LIMITS, bib, bibStyle, plan, balance, shuffle, makeDraw, applyWin, applyTie } from './teams.js';
 import { DEMO, serverNow, createGroup, loadGroup, saveGroup, viewGroup, registerPlayer, unregisterPlayer, errText } from './api.js';
 
 const $app = document.getElementById('app');
@@ -80,7 +80,7 @@ function teamsHtml(S, { ratings, dealt }) {
     return `<section class="team ${t.waiting ? 'waiting' : ''}" style="${bibStyle(b)}" aria-label="קבוצה ${b.name}">
       <div class="team-head"><h3>${t.waiting ? '<span class="sub">קבוצה מזמינה</span>' : ''}קבוצה ${b.name}</h3>
       ${ratings ? `<div class="avg"><b class="num">${a.toFixed(1)}</b><span>ממוצע</span></div>` : `<div class="avg"><span class="num">${ps.length} שחקנים</span></div>`}</div>
-      <ol>${ps.map((p) => `<li><span class="who"><span class="tag ${p.pos === 'gk' ? 'gk' : ''}">${POS[p.pos] || ''}</span><span>${esc(p.name)}</span></span>${ratings ? `<span class="r num">${p.rating}</span>` : ''}</li>`).join('')}</ol>
+      <ol>${ps.map((p) => `<li><span class="who"><span class="tag">${POS[normPos(p.pos)]}</span><span>${esc(p.name)}</span></span>${ratings ? `<span class="r num">${p.rating}</span>` : ''}</li>`).join('')}</ol>
     </section>`;
   }).join('') + '</div>';
 }
@@ -191,6 +191,7 @@ async function startManager(id) {
     const r = await loadGroup(M.id, M.secret);
     M.name = r.name; M.code = r.view_code;
     M.S = Object.assign(freshState(), r.state || {});
+    M.S.players.forEach((p) => { p.pos = normPos(p.pos); });
     rememberGroup({ id: M.id, secret: M.secret, name: M.name, code: M.code });
     takeSignups(r.signups);
     renderManager();
@@ -212,10 +213,10 @@ function takeSignups(list) {
     const p = M.S.players.find((q) => (x.pid && q.id === x.pid) || norm(q.name) === norm(x.name));
     if (p) {
       p.here = true;
-      if (x.pos) p.pos = x.pos;
+      if (x.pos) p.pos = normPos(x.pos);
       M.taken.push(x.id);
       changed = true;
-    } else M.signups.push(x);
+    } else M.signups.push(Object.assign({}, x, { pos: normPos(x.pos) }));
   }
   if (changed) persist();
   return changed;
@@ -555,7 +556,7 @@ function signupHtml(compact) {
   let h = '<section class="signup" aria-label="הרשמה למשחק">';
   if (me && listed && !V.editing) {
     const stillPending = (V.data.signups || []).some((x) => x.id === me.id);
-    h += `<div class="signup-done"><span class="tick" aria-hidden="true"></span><div><b>נרשמת למשחק</b><span>${esc(me.name)} · ${POS[me.pos] || ''}</span></div>
+    h += `<div class="signup-done"><span class="tick" aria-hidden="true"></span><div><b>נרשמת למשחק</b><span>${esc(me.name)} · ${POS[normPos(me.pos)]}</span></div>
       <div class="acts"><button type="button" class="linkbtn" data-act="v-edit">שנה עמדה</button>${stillPending ? '<button type="button" class="linkbtn" data-act="v-cancel">ביטול</button>' : ''}</div></div>`;
   } else {
     const pos = V.pos || (me && me.pos) || '';
@@ -571,7 +572,7 @@ function signupHtml(compact) {
       </form>`;
   }
   if (list.length) {
-    h += `<div class="coming"><h3>מגיעים למשחק הקרוב <span class="num">${list.length}</span></h3><ul>${list.map((p) => `<li class="${isMe(p) ? 'me' : ''}"><span class="tag ${p.pos === 'gk' ? 'gk' : ''}">${POS[p.pos] || ''}</span><span>${esc(p.name)}</span></li>`).join('')}</ul></div>`;
+    h += `<div class="coming"><h3>מגיעים למשחק הקרוב <span class="num">${list.length}</span></h3><ul>${list.map((p) => `<li class="${isMe(p) ? 'me' : ''}"><span class="tag">${POS[normPos(p.pos)]}</span><span>${esc(p.name)}</span></li>`).join('')}</ul></div>`;
   }
   return h + '</section>';
 }
@@ -612,7 +613,7 @@ function bindPlayer() {
     e.preventDefault();
     const name = $('#regName').value.trim();
     if (!name) return;
-    if (!V.pos) { toast('בחר עמדה: שוער, אמצע או התקפה', true); return; }
+    if (!V.pos) { toast('בחר עמדה: בלם/מגן, אמצע או התקפה', true); return; }
     V.busy = true;
     e.target.querySelector('[type=submit]').disabled = true;
     try {

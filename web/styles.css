@@ -94,7 +94,6 @@ ul.roster li.away .name,ul.roster li.away .pos{opacity:.4}
 .team li:last-child{border-bottom:0}
 .team li .who{display:flex;align-items:center;gap:10px;min-width:0;font-weight:500}
 .tag{font-size:.74rem;font-weight:700;padding:1px 6px;border:1px solid var(--line);color:var(--muted);flex:none;min-width:3.8em;text-align:center}
-.tag.gk{border-color:var(--hi);color:var(--hi)}
 .team li .r{font-weight:700;font-size:1.05rem;line-height:1}
 .fair{margin-top:14px;font-size:.95rem;color:var(--muted)}
 
