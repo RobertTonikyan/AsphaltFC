@@ -1,11 +1,13 @@
 import { POS, LIMITS, bib, bibStyle, plan, balance, shuffle, makeDraw, applyWin, applyTie } from './teams.js';
-import { DEMO, serverNow, createGroup, loadGroup, saveGroup, viewGroup, errText } from './api.js';
+import { DEMO, serverNow, createGroup, loadGroup, saveGroup, viewGroup, registerPlayer, unregisterPlayer, errText } from './api.js';
 
 const $app = document.getElementById('app');
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
 const MIN = 60000;
+const norm = (n) => String(n || '').trim().toLowerCase();
+const newId = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 const demoQ = DEMO ? '?demo' : '';
 
 /* ---------- local storage (per device conveniences only) ---------- */
@@ -175,7 +177,8 @@ function home() {
 /* =========================================================
    MANAGER
    ========================================================= */
-const M = { id: null, secret: null, name: '', code: '', S: null, tab: 'roster', newPos: 'mid', newRate: 5, pendingDel: null, dealt: false, drawn: false, rolling: false, sync: 'saved' };
+const M = { id: null, secret: null, name: '', code: '', S: null, tab: 'roster', newPos: 'mid', newRate: 5, pendingDel: null, dealt: false, drawn: false, rolling: false, sync: 'saved',
+  signups: [], taken: [], sigRate: {}, pendingReset: false };
 
 function freshState() { return { players: [], teams: 3, size: 5, dur: 8, result: null, game: null }; }
 
@@ -189,10 +192,44 @@ async function startManager(id) {
     M.name = r.name; M.code = r.view_code;
     M.S = Object.assign(freshState(), r.state || {});
     rememberGroup({ id: M.id, secret: M.secret, name: M.name, code: M.code });
+    takeSignups(r.signups);
     renderManager();
+    setInterval(pollSignups, 6000);
   } catch (e) {
     $app.innerHTML = band({ title: 'אין גישה' }) + `<main class="gut"><div class="empty"><h2>לא הצלחתי לפתוח</h2><p>${esc(errText(e))}</p><button class="btn" data-act="reload">ניסיון חוזר</button></div></main>`;
   }
+}
+
+/* ---------- sign-ups from the player link ----------
+   A sign-up whose name is already in the squad just marks that player as coming (with the
+   position they chose). New names wait in M.signups until the manager gives them a rating. */
+function takeSignups(list) {
+  const seen = new Set(M.taken);
+  let changed = false;
+  M.signups = [];
+  for (const x of list || []) {
+    if (seen.has(x.id)) continue;
+    const p = M.S.players.find((q) => (x.pid && q.id === x.pid) || norm(q.name) === norm(x.name));
+    if (p) {
+      p.here = true;
+      if (x.pos) p.pos = x.pos;
+      M.taken.push(x.id);
+      changed = true;
+    } else M.signups.push(x);
+  }
+  if (changed) persist();
+  return changed;
+}
+async function pollSignups() {
+  if (document.hidden || M.rolling) return;
+  try {
+    const r = await loadGroup(M.id, M.secret);
+    const before = M.signups.map((x) => x.id + x.pos).join();
+    const changed = takeSignups(r.signups);
+    const after = M.signups.map((x) => x.id + x.pos).join();
+    const busy = document.activeElement && /^(INPUT|SELECT)$/.test(document.activeElement.tagName);
+    if ((changed || before !== after) && M.tab === 'roster' && !busy) renderManager();
+  } catch (e) { /* offline: try again next round */ }
 }
 
 /* saving: debounced, retried while offline */
@@ -206,8 +243,10 @@ function persist() {
 }
 async function flush() {
   clearTimeout(retryTimer);
+  const taken = M.taken.slice();
   try {
-    await saveGroup(M.id, M.secret, M.S);
+    await saveGroup(M.id, M.secret, M.S, null, taken);
+    M.taken = M.taken.filter((id) => !taken.includes(id));
     M.sync = 'saved';
   } catch (e) {
     M.sync = 'error';
@@ -232,7 +271,9 @@ function renderManager() {
 function rosterView() {
   const S = M.S;
   const n = here().length;
-  let h = `<div class="summary"><span class="big num">${n}</span><small>מגיעים היום, מתוך ${S.players.length} בסגל</small></div>
+  let h = `<div class="summary"><span class="big num">${n}</span><small>מגיעים היום, מתוך ${S.players.length} בסגל</small>
+    ${n ? `<button type="button" class="linkbtn push ${M.pendingReset ? 'confirm' : ''}" data-act="reset-here">${M.pendingReset ? 'לנקות את כולם? לחץ שוב' : 'שבוע חדש: נקה מגיעים'}</button>` : ''}</div>
+    ${signupsHtml()}
     <form class="add" id="addForm" autocomplete="off">
       <input type="text" id="newName" placeholder="שם השחקן" aria-label="שם השחקן" maxlength="30" required>
       <button class="btn" type="submit">הוסף</button>
@@ -252,6 +293,23 @@ function rosterView() {
     </li>`).join('') + '</ul>';
   h += `<div class="bar"><div class="in"><button class="btn" data-tab="split">המשך לחלוקה (${n} מגיעים)</button></div></div>`;
   return h;
+}
+
+function signupsHtml() {
+  if (!M.signups.length) return '';
+  return `<section class="signups" aria-label="נרשמו דרך הקישור">
+    <div class="signups-head"><h2>נרשמו דרך הקישור</h2><span class="num">${M.signups.length}</span></div>
+    <p>שחקנים חדשים שנרשמו בעצמם. תן דירוג והוסף לסגל, הם יסומנו כמגיעים היום.</p>
+    <ul>${M.signups.map((x) => {
+      const r = M.sigRate[x.id] || 5;
+      return `<li>
+        <span class="name">${esc(x.name)}</span>
+        <span class="pos"><select data-sigpos="${esc(x.id)}" aria-label="עמדה של ${esc(x.name)}">${Object.entries(POS).map(([k, v]) => `<option value="${k}" ${x.pos === k ? 'selected' : ''}>${v}</option>`).join('')}</select></span>
+        <span class="rate"><button type="button" data-sigrate="${esc(x.id)}" data-d="-1" aria-label="הורד דירוג ל${esc(x.name)}" ${r <= 1 ? 'disabled' : ''}>−</button><output class="num">${r}</output><button type="button" data-sigrate="${esc(x.id)}" data-d="1" aria-label="העלה דירוג ל${esc(x.name)}" ${r >= 10 ? 'disabled' : ''}>+</button></span>
+        <span class="acts"><button type="button" class="btn hi sm" data-sigadd="${esc(x.id)}">הוסף לסגל</button><button type="button" class="del" data-sigdrop="${esc(x.id)}">דחה</button></span>
+      </li>`;
+    }).join('')}</ul>
+  </section>`;
 }
 
 function planText() {
@@ -288,10 +346,10 @@ function linksView() {
   const origin = location.origin;
   const viewUrl = `${origin}/v/${M.code}${demoQ}`;
   const adminUrl = `${origin}/m/${M.id}${demoQ}#${M.secret}`;
-  const wa = 'https://wa.me/?text=' + encodeURIComponent(`הקבוצות של ${M.name}:\n${viewUrl}`);
+  const wa = 'https://wa.me/?text=' + encodeURIComponent(`${M.name}: נרשמים כאן למשחק ורואים את הקבוצות\n${viewUrl}`);
   return `<section class="linkbox">
       <h2>קישור לשחקנים</h2>
-      <p>רואים את הקבוצות, מי משחק עכשיו, התור והשעון. בלי דירוגים.</p>
+      <p>השחקנים נרשמים בעצמם עם שם ועמדה, ורואים מי מגיע, את הקבוצות, התור והשעון. בלי דירוגים.</p>
       <input type="text" readonly value="${esc(viewUrl)}" aria-label="קישור לשחקנים" id="viewUrl">
       <div class="row"><button class="btn hi" data-copy="${esc(viewUrl)}">העתק קישור</button><a class="btn ghost" href="${esc(wa)}" target="_blank" rel="noopener">שלח בוואטסאפ</a></div>
     </section>
@@ -392,6 +450,23 @@ function bindManager() {
       renderManager(); return;
     }
     M.pendingDel = null;
+    if (d.act === 'reset-here') {
+      if (M.pendingReset) { S.players.forEach((p) => { p.here = false; }); M.pendingReset = false; S.result = null; S.game = null; persist(); }
+      else M.pendingReset = true;
+      renderManager(); return;
+    }
+    M.pendingReset = false;
+    if (d.sigrate) { M.sigRate[d.sigrate] = clamp((M.sigRate[d.sigrate] || 5) + +d.d, LIMITS.rating); renderManager(); return; }
+    if (d.sigadd || d.sigdrop) {
+      const x = M.signups.find((q) => q.id === (d.sigadd || d.sigdrop));
+      if (!x) return;
+      if (d.sigadd) S.players.push({ id: newId(), name: x.name, rating: M.sigRate[x.id] || 5, pos: x.pos || 'mid', here: true });
+      M.signups = M.signups.filter((q) => q.id !== x.id);
+      M.taken.push(x.id);
+      persist(); renderManager();
+      if (d.sigadd) toast(`${x.name} נוסף לסגל`);
+      return;
+    }
     if (d.act === 'draw') { runDraw(); return; }
     let changed = true;
     if (d.tab) { M.tab = d.tab; store('tab', d.tab); window.scrollTo(0, 0); changed = false; }
@@ -410,6 +485,7 @@ function bindManager() {
     const S = M.S;
     if (t.dataset.here) S.players.find((p) => p.id === t.dataset.here).here = t.checked;
     else if (t.dataset.pos) S.players.find((p) => p.id === t.dataset.pos).pos = t.value;
+    else if (t.dataset.sigpos) { const x = M.signups.find((q) => q.id === t.dataset.sigpos); if (x) x.pos = t.value; return; }
     else return;
     persist(); renderManager();
   });
@@ -418,7 +494,7 @@ function bindManager() {
     if (e.target.id === 'addForm') {
       const name = $('#newName').value.trim();
       if (!name) return;
-      M.S.players.push({ id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name, rating: M.newRate, pos: M.newPos, here: true });
+      M.S.players.push({ id: newId(), name, rating: M.newRate, pos: M.newPos, here: true });
       persist(); renderManager();
       const f = $('#newName'); if (f) f.focus();
     } else if (e.target.id === 'renameForm') {
@@ -435,13 +511,15 @@ function bindManager() {
 }
 
 /* =========================================================
-   PLAYER VIEW (read only, no ratings)
+   PLAYER VIEW (sign up with name and position; teams without ratings)
    ========================================================= */
-const V = { code: null, data: null, stamp: null };
+const V = { code: null, data: null, stamp: null, me: null, pos: null, busy: false, editing: false };
 
 async function startPlayer(code) {
   V.code = code;
+  V.me = store('me.' + code);
   $app.innerHTML = '<div class="spinner" role="progressbar" aria-label="טוען"></div>';
+  bindPlayer();
   await pollPlayer();
   setInterval(pollPlayer, 3000);
   setInterval(playerTick, 250);
@@ -449,24 +527,111 @@ async function startPlayer(code) {
 async function pollPlayer() {
   try {
     const r = await viewGroup(V.code);
-    const stamp = JSON.stringify(r.state) + r.name;
+    const stamp = JSON.stringify(r.state) + JSON.stringify(r.signups || []) + r.name;
     if (stamp !== V.stamp) { V.stamp = stamp; V.data = r; renderPlayer(); }
   } catch (e) {
     if (!V.data) $app.innerHTML = band({ title: 'Asphalt FC' }) + `<main class="gut"><div class="empty"><h2>לא הצלחתי לפתוח</h2><p>${esc(errText(e))}</p></div></main>`;
   }
 }
+
+/** Everyone coming today: squad players marked as coming, plus sign-ups still waiting for the manager. */
+function comingToday() {
+  const { state, signups } = V.data;
+  const out = [];
+  const seen = new Set();
+  for (const p of (state.players || []).filter((q) => q.here).concat(signups || [])) {
+    const k = norm(p.name);
+    if (seen.has(k)) continue;
+    seen.add(k); out.push(p);
+  }
+  return out;
+}
+
+function signupHtml(compact) {
+  const me = V.me;
+  const isMe = (p) => me && norm(p.name) === norm(me.name);
+  const list = comingToday();
+  const listed = me && list.some(isMe);
+  let h = '<section class="signup" aria-label="הרשמה למשחק">';
+  if (me && listed && !V.editing) {
+    const stillPending = (V.data.signups || []).some((x) => x.id === me.id);
+    h += `<div class="signup-done"><span class="tick" aria-hidden="true"></span><div><b>נרשמת למשחק</b><span>${esc(me.name)} · ${POS[me.pos] || ''}</span></div>
+      <div class="acts"><button type="button" class="linkbtn" data-act="v-edit">שנה עמדה</button>${stillPending ? '<button type="button" class="linkbtn" data-act="v-cancel">ביטול</button>' : ''}</div></div>`;
+  } else {
+    const pos = V.pos || (me && me.pos) || '';
+    h += `<h2>${compact ? 'עוד לא נרשמת?' : 'מגיע לשחק?'}</h2>
+      <p>כותבים שם ובוחרים עמדה. המארגן יכניס אותך לחלוקה.</p>
+      <form class="add reg" id="regForm" autocomplete="off">
+        <label for="regName" class="lbl">השם שלך</label>
+        <input type="text" id="regName" maxlength="30" required placeholder="איך קוראים לך במגרש" value="${esc((me && me.name) || '')}">
+        <div class="row2"><span class="poslab">עמדה</span><div class="chips" role="group" aria-label="עמדה">
+          ${Object.entries(POS).map(([k, v]) => `<button type="button" class="chip" data-vpos="${k}" aria-pressed="${pos === k}">${v}</button>`).join('')}
+        </div></div>
+        <button class="btn hi wide" type="submit" ${V.busy ? 'disabled' : ''}>אני מגיע</button>
+      </form>`;
+  }
+  if (list.length) {
+    h += `<div class="coming"><h3>מגיעים היום <span class="num">${list.length}</span></h3><ul>${list.map((p) => `<li class="${isMe(p) ? 'me' : ''}"><span class="tag ${p.pos === 'gk' ? 'gk' : ''}">${POS[p.pos] || ''}</span><span>${esc(p.name)}</span></li>`).join('')}</ul></div>`;
+  }
+  return h + '</section>';
+}
+
 function renderPlayer() {
   const { name, state } = V.data;
   const S = { players: state.players || [], result: state.result, game: state.game };
+  // keep what the player is typing across live refreshes
+  const f = document.getElementById('regName');
+  const typed = f ? f.value : null;
+  const focused = f && document.activeElement === f;
   let body;
-  if (!S.result) body = '<div class="empty"><h2>עוד אין קבוצות</h2><p>המארגן עדיין לא חילק קבוצות. הן יופיעו כאן ברגע שיחולקו.</p></div>';
+  if (!S.result) body = signupHtml(false);
   else {
     body = '<h2 class="player-title">הקבוצות להיום</h2>';
     if (S.result.draw) body += drawHtml(S, {}) + (S.game && S.game.started ? clockHtml(S, false) : '');
-    body += teamsHtml(S, { ratings: false });
+    body += teamsHtml(S, { ratings: false }) + signupHtml(true);
   }
   $app.innerHTML = band({ title: name }) + `<main class="gut">${body}</main>`;
+  const g = document.getElementById('regName');
+  if (g && typed !== null) { g.value = typed; if (focused) { g.focus(); g.setSelectionRange(typed.length, typed.length); } }
 }
+
+function bindPlayer() {
+  document.addEventListener('click', async (e) => {
+    const t = e.target.closest('button');
+    if (!t) return;
+    const d = t.dataset;
+    if (d.vpos) { V.pos = d.vpos; document.querySelectorAll('[data-vpos]').forEach((b) => b.setAttribute('aria-pressed', b === t)); return; }
+    if (d.act === 'v-edit') { V.pos = V.me.pos; V.editing = true; renderPlayer(); return; }
+    if (d.act === 'v-cancel' && V.me) {
+      try { await unregisterPlayer(V.code, V.me.id); store('me.' + V.code, null); V.me = null; V.stamp = null; await pollPlayer(); toast('ההרשמה בוטלה'); }
+      catch (err) { toast(errText(err), true); }
+    }
+  });
+  document.addEventListener('submit', async (e) => {
+    if (e.target.id !== 'regForm') return;
+    e.preventDefault();
+    const name = $('#regName').value.trim();
+    if (!name) return;
+    if (!V.pos) { toast('בחר עמדה: שוער, אמצע או התקפה', true); return; }
+    V.busy = true;
+    e.target.querySelector('[type=submit]').disabled = true;
+    try {
+      const prev = V.me;
+      const r = await registerPlayer(V.code, name, V.pos);
+      // signed up again under another name: drop the old sign-up if it is still waiting
+      if (prev && prev.id !== r.id && norm(prev.name) !== norm(r.name)) unregisterPlayer(V.code, prev.id).catch(() => {});
+      V.me = { id: r.id, name: r.name, pos: r.pos };
+      V.editing = false;
+      store('me.' + V.code, V.me);
+      V.pos = null; V.stamp = null;
+      await pollPlayer();
+      toast('נרשמת. נתראה במגרש');
+    } catch (err) { toast(errText(err), true); }
+    V.busy = false;
+    const b = document.querySelector('#regForm [type=submit]'); if (b) b.disabled = false;
+  });
+}
+
 function playerTick() {
   const g = V.data && V.data.state.game;
   if (!g || !g.running) return;
