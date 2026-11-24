@@ -13,7 +13,9 @@ export const BIBS = [
   { id: 'sky', name: 'תכלת', c: '#3cc8f5', ink: '#001a24' },
 ];
 
-export const POS = { gk: 'שוער', mid: 'אמצע', att: 'התקפה' };
+export const POS = { def: 'בלם/מגן', mid: 'אמצע', att: 'התקפה' };
+/** Older data used a goalkeeper position; it is now defence. */
+export const normPos = (p) => (p === 'gk' ? 'def' : POS[p] ? p : 'mid');
 
 export const LIMITS = { teams: [3, 10], size: [2, 11], rating: [1, 10], minutes: [1, 30] };
 
@@ -31,8 +33,8 @@ const avg = (t) => (t.ps.length ? t.ps.reduce((a, p) => a + p.rating, 0) / t.ps.
 
 /**
  * Splits players into balanced teams.
- * Goalkeepers are spread first (one per full team), then everyone else is placed greedily
- * by rating with a penalty for stacking one position, and finally same-position swaps
+ * Players are placed greedily, strongest first, to the team with the lowest average,
+ * with a penalty for stacking one position (defence, midfield, attack), and finally same-position swaps
  * reduce the variance of team averages. Small noise makes every reshuffle different.
  */
 export function balance(players, T, size, rand = Math.random) {
@@ -42,27 +44,8 @@ export function balance(players, T, size, rand = Math.random) {
   const teams = caps.map((c) => ({ cap: c, ps: [], sum: 0 }));
   const noisy = (p) => p.rating + (rand() - 0.5) * 0.9;
   const load = (t) => t.sum / t.cap;
-  const fullIdx = teams.map((t, i) => i).filter((i) => i < P.full);
-  const allIdx = teams.map((t, i) => i);
-  const hasGk = (t) => t.ps.some((p) => p.pos === 'gk');
-
-  const extraGk = [];
   players
-    .filter((p) => p.pos === 'gk')
-    .sort((a, b) => noisy(b) - noisy(a))
-    .forEach((g) => {
-      let open = fullIdx.filter((i) => !hasGk(teams[i])).sort((a, b) => load(teams[a]) - load(teams[b]));
-      if (!open.length) open = allIdx.filter((i) => teams[i].ps.length < teams[i].cap && !hasGk(teams[i]));
-      if (open.length) {
-        const t = teams[open[0]];
-        t.ps.push(g);
-        t.sum += g.rating;
-      } else extraGk.push(g);
-    });
-
-  players
-    .filter((p) => p.pos !== 'gk')
-    .concat(extraGk)
+    .map((p) => ({ ...p, pos: normPos(p.pos) }))
     .map((p) => ({ p, k: noisy(p) }))
     .sort((a, b) => b.k - a.k)
     .forEach(({ p }) => {
@@ -71,7 +54,7 @@ export function balance(players, T, size, rand = Math.random) {
       for (const t of teams) {
         if (t.ps.length >= t.cap) continue;
         const same = t.ps.filter((q) => q.pos === p.pos).length;
-        const score = t.sum / t.cap + same * 0.8 + rand() * 0.05;
+        const score = load(t) + same * 0.8 + rand() * 0.05;
         if (score < bestScore) { bestScore = score; best = t; }
       }
       best.ps.push(p);
@@ -107,7 +90,7 @@ export function balance(players, T, size, rand = Math.random) {
     [teams[i].ps[x], teams[j].ps[y]] = [teams[j].ps[y], teams[i].ps[x]];
   }
 
-  const order = { gk: 0, mid: 1, att: 2 };
+  const order = { def: 0, mid: 1, att: 2 };
   const out = teams.map((t, i) => ({
     bib: BIBS[i].id,
     waiting: i >= P.full,

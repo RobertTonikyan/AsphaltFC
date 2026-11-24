@@ -55,9 +55,9 @@
 ## Features
 
 - **No accounts.** Create a group with a name. You get a private manager link and a separate link for players, where they sign up by name only.
-- **Players sign themselves up.** The player link opens with a short form: name and position (goalkeeper, midfield, attack). Everyone sees who is coming to the next game. A regular who signs up is simply marked as coming; a new name waits for the manager, who only has to give a rating and tap add.
-- **Squad that remembers.** Add each regular once with a position (goalkeeper, midfield, attack) and a 1–10 rating. Before each game, players sign up or you tick who is coming.
-- **Fair split.** Pick 3 to 10 teams and players per team. Every full team gets a goalkeeper, positions are mixed, and averages are balanced. Leftover players form the waiting team (קבוצה מזמינה).
+- **Players sign themselves up.** The player link opens with a short form: name and position (defence, midfield, attack). Everyone sees who is coming to the next game. A regular who signs up is simply marked as coming; a new name waits for the manager, who only has to give a rating and tap add.
+- **Squad that remembers.** Add each regular once with a position (defence, midfield, attack) and a 1–10 rating. Before each game, players sign up or you tick who is coming.
+- **Fair split.** Pick 3 to 10 teams and players per team. Defenders, midfielders and attackers are spread across the teams, and averages are balanced. Leftover players form the waiting team (קבוצה מזמינה).
 - **Opening draw.** One tap draws the two teams that kick off. The rest queue in random order, with the waiting team last.
 - **Match clock.** Set the length (8 minutes by default), start, pause for a ball over the fence or a penalty argument, resume or restart. When teams are waiting, add extra time one minute at a time. A whistle sounds when time is up, and the screen stays awake while the clock runs.
 - **Rotation.** Pick the winner: the winner stays, the loser goes to the back, the next team comes on. On a draw with one team waiting it goes to penalties; with two or more waiting, both drawn teams step off and the next two come on.
@@ -67,11 +67,10 @@
 
 ## How the split works
 
-`web/src/teams.js` builds teams in three passes:
+`web/src/teams.js` builds teams in two passes:
 
-1. **Goalkeepers first**, one per full team, each to the currently weakest team.
-2. **Everyone else, strongest first**, to the team with the lowest average so far, with a penalty for stacking one position in the same team.
-3. **Swaps.** Same-position players are swapped between teams while it lowers the variance of team averages.
+1. **Strongest first**, each player goes to the team with the lowest average so far, with a penalty for stacking one position (defence, midfield, attack) in the same team.
+2. **Swaps.** Same-position players are swapped between teams while it lowers the variance of team averages.
 
 A little noise on each rating means **Split again** gives a different but equally fair result. With the sample squad the gap between the strongest and weakest full team is usually under half a rating point.
 
@@ -141,6 +140,7 @@ Routes live in `web/_redirects` and security headers in `web/_headers`; both hos
 
 ## Version history
 
+- **v2.2 · Positions.** Defence (בלם/מגן), midfield and attack; the goalkeeper position is gone and existing goalkeepers became defenders. Players get their own `asphalt_players` table.
 - **v2.1 · Self sign-up.** Players sign up from the player link with a name and a position; the manager only rates new names.
 - **v2 · Asphalt FC.** New name and design, goalkeeper/midfield/attack positions, 3–10 teams of any size, waiting team, opening draw, match clock with extra time, winner-stays rotation with draw rules, live player view.
 - **v1 · tiko.** The first version: fixed teams of five, self sign-up and RSVP links, captains, penalties and game history.
