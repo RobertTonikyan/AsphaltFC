@@ -38,7 +38,7 @@
   <tr>
     <td align="center"><img src="docs/screenshots/player.png" width="240" alt="Player sign-up"><br><sub><b>Sign-up</b>: players add themselves with a name and a position</sub></td>
     <td align="center"><img src="docs/screenshots/signups.png" width="240" alt="Rate new sign-ups"><br><sub><b>Sign-ups</b>: the manager only gives a rating</sub></td>
-    <td align="center"><img src="docs/screenshots/squad.png" width="240" alt="Squad"><br><sub><b>Squad</b>: name, position, rating 1–10, who's here today</sub></td>
+    <td align="center"><img src="docs/screenshots/squad.png" width="240" alt="Squad"><br><sub><b>Squad</b>: name, position, rating 1–10, who's coming to the next game</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="docs/screenshots/split.png" width="240" alt="Fair split"><br><sub><b>Split</b>: 3–10 teams, any team size, balanced by rating</sub></td>
@@ -55,8 +55,8 @@
 ## Features
 
 - **No accounts.** Create a group with a name. You get a private manager link and a separate link for players, where they sign up by name only.
-- **Players sign themselves up.** The player link opens with a short form: name and position (goalkeeper, midfield, attack). Everyone sees who is coming today. A regular who signs up is simply marked as coming; a new name waits for the manager, who only has to give a rating and tap add.
-- **Squad that remembers.** Add each regular once with a position (goalkeeper, midfield, attack) and a 1–10 rating. Each week just tick who showed up.
+- **Players sign themselves up.** The player link opens with a short form: name and position (goalkeeper, midfield, attack). Everyone sees who is coming to the next game. A regular who signs up is simply marked as coming; a new name waits for the manager, who only has to give a rating and tap add.
+- **Squad that remembers.** Add each regular once with a position (goalkeeper, midfield, attack) and a 1–10 rating. Before each game, players sign up or you tick who is coming.
 - **Fair split.** Pick 3 to 10 teams and players per team. Every full team gets a goalkeeper, positions are mixed, and averages are balanced. Leftover players form the waiting team (קבוצה מזמינה).
 - **Opening draw.** One tap draws the two teams that kick off. The rest queue in random order, with the waiting team last.
 - **Match clock.** Set the length (8 minutes by default), start, pause for a ball over the fence or a penalty argument, resume or restart. When teams are waiting, add extra time one minute at a time. A whistle sounds when time is up, and the screen stays awake while the clock runs.

@@ -271,8 +271,8 @@ function renderManager() {
 function rosterView() {
   const S = M.S;
   const n = here().length;
-  let h = `<div class="summary"><span class="big num">${n}</span><small>מגיעים היום, מתוך ${S.players.length} בסגל</small>
-    ${n ? `<button type="button" class="linkbtn push ${M.pendingReset ? 'confirm' : ''}" data-act="reset-here">${M.pendingReset ? 'לנקות את כולם? לחץ שוב' : 'שבוע חדש: נקה מגיעים'}</button>` : ''}</div>
+  let h = `<div class="summary"><span class="big num">${n}</span><small>מגיעים למשחק הקרוב, מתוך ${S.players.length} בסגל</small>
+    ${n ? `<button type="button" class="linkbtn push ${M.pendingReset ? 'confirm' : ''}" data-act="reset-here">${M.pendingReset ? 'לנקות את כולם? לחץ שוב' : 'משחק חדש: נקה מגיעים'}</button>` : ''}</div>
     ${signupsHtml()}
     <form class="add" id="addForm" autocomplete="off">
       <input type="text" id="newName" placeholder="שם השחקן" aria-label="שם השחקן" maxlength="30" required>
@@ -285,7 +285,7 @@ function rosterView() {
   if (!S.players.length) return h + '<div class="empty"><h2>הסגל ריק</h2><p>הוסף את השחקנים הקבועים פעם אחת, והם יישמרו למשחקים הבאים.</p></div>';
   const list = [...S.players].sort((a, b) => (b.here - a.here) || a.name.localeCompare(b.name, 'he'));
   h += '<ul class="roster">' + list.map((p) => `<li class="${p.here ? '' : 'away'}">
-      <input type="checkbox" class="here" data-here="${p.id}" ${p.here ? 'checked' : ''} aria-label="${esc(p.name)} מגיע היום">
+      <input type="checkbox" class="here" data-here="${p.id}" ${p.here ? 'checked' : ''} aria-label="${esc(p.name)} מגיע למשחק הקרוב">
       <span class="name">${esc(p.name)}</span>
       <span class="pos"><select data-pos="${p.id}" aria-label="עמדה של ${esc(p.name)}">${Object.entries(POS).map(([k, v]) => `<option value="${k}" ${p.pos === k ? 'selected' : ''}>${v}</option>`).join('')}</select></span>
       <span class="rate"><button type="button" data-rate="${p.id}" data-d="-1" aria-label="הורד דירוג ל${esc(p.name)}" ${p.rating <= 1 ? 'disabled' : ''}>−</button><output class="num">${p.rating}</output><button type="button" data-rate="${p.id}" data-d="1" aria-label="העלה דירוג ל${esc(p.name)}" ${p.rating >= 10 ? 'disabled' : ''}>+</button></span>
@@ -299,7 +299,7 @@ function signupsHtml() {
   if (!M.signups.length) return '';
   return `<section class="signups" aria-label="נרשמו דרך הקישור">
     <div class="signups-head"><h2>נרשמו דרך הקישור</h2><span class="num">${M.signups.length}</span></div>
-    <p>שחקנים חדשים שנרשמו בעצמם. תן דירוג והוסף לסגל, הם יסומנו כמגיעים היום.</p>
+    <p>שחקנים חדשים שנרשמו בעצמם. תן דירוג והוסף לסגל, הם יסומנו כמגיעים למשחק הקרוב.</p>
     <ul>${M.signups.map((x) => {
       const r = M.sigRate[x.id] || 5;
       return `<li>
@@ -534,8 +534,8 @@ async function pollPlayer() {
   }
 }
 
-/** Everyone coming today: squad players marked as coming, plus sign-ups still waiting for the manager. */
-function comingToday() {
+/** Everyone coming to the next game: squad players marked as coming, plus sign-ups still waiting for the manager. */
+function comingNext() {
   const { state, signups } = V.data;
   const out = [];
   const seen = new Set();
@@ -550,7 +550,7 @@ function comingToday() {
 function signupHtml(compact) {
   const me = V.me;
   const isMe = (p) => me && norm(p.name) === norm(me.name);
-  const list = comingToday();
+  const list = comingNext();
   const listed = me && list.some(isMe);
   let h = '<section class="signup" aria-label="הרשמה למשחק">';
   if (me && listed && !V.editing) {
@@ -571,7 +571,7 @@ function signupHtml(compact) {
       </form>`;
   }
   if (list.length) {
-    h += `<div class="coming"><h3>מגיעים היום <span class="num">${list.length}</span></h3><ul>${list.map((p) => `<li class="${isMe(p) ? 'me' : ''}"><span class="tag ${p.pos === 'gk' ? 'gk' : ''}">${POS[p.pos] || ''}</span><span>${esc(p.name)}</span></li>`).join('')}</ul></div>`;
+    h += `<div class="coming"><h3>מגיעים למשחק הקרוב <span class="num">${list.length}</span></h3><ul>${list.map((p) => `<li class="${isMe(p) ? 'me' : ''}"><span class="tag ${p.pos === 'gk' ? 'gk' : ''}">${POS[p.pos] || ''}</span><span>${esc(p.name)}</span></li>`).join('')}</ul></div>`;
   }
   return h + '</section>';
 }
@@ -586,7 +586,7 @@ function renderPlayer() {
   let body;
   if (!S.result) body = signupHtml(false);
   else {
-    body = '<h2 class="player-title">הקבוצות להיום</h2>';
+    body = '<h2 class="player-title">הקבוצות למשחק הקרוב</h2>';
     if (S.result.draw) body += drawHtml(S, {}) + (S.game && S.game.started ? clockHtml(S, false) : '');
     body += teamsHtml(S, { ratings: false }) + signupHtml(true);
   }
