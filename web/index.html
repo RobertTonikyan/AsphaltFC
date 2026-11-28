@@ -19,11 +19,39 @@
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@400;500;700&family=Rubik+Dirt&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@400;500;700&family=Rubik+Dirt&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="/styles.css">
+<style>
+html,body{background:#161E2F;color:#F6EEEA;margin:0}
+.boot{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;font-family:system-ui,-apple-system,sans-serif}
+.boot b{font-size:22px;letter-spacing:.5px}
+.boot p{margin:0;color:#AEB6C8;max-width:320px;line-height:1.5}
+.boot button{background:#FFA586;color:#161E2F;border:0;border-radius:4px;padding:10px 22px;font:inherit;font-weight:700;min-height:44px}
+</style>
 </head>
 <body>
-<div id="app" aria-live="polite"></div>
+<div id="app" aria-live="polite"><div class="boot" id="boot"><b>Asphalt FC</b><p id="bootMsg">טוען…</p></div></div>
+<script>
+(function () {
+  function fail() {
+    var box = document.getElementById('boot');
+    if (!box) return;
+    document.getElementById('bootMsg').textContent = 'הדף לא נטען עד הסוף. כדאי לרענן, ואם זה לא עוזר לפתוח את הקישור בספארי או לעדכן את גרסת ה־iOS.';
+    if (!box.querySelector('button')) {
+      var b = document.createElement('button');
+      b.textContent = 'רענון';
+      b.onclick = function () { location.reload(); };
+      box.appendChild(b);
+    }
+  }
+  window.addEventListener('error', function (e) {
+    var t = e.target;
+    if (t && t.tagName === 'SCRIPT' && t.src.indexOf('/src/') > -1) fail();
+  }, true);
+  window.addEventListener('error', function () { setTimeout(fail, 0); });
+  setTimeout(fail, 12000);
+})();
+</script>
 <noscript>כדי להשתמש ב־Asphalt FC צריך להפעיל JavaScript בדפדפן.</noscript>
 <script type="module" src="/src/main.js"></script>
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "59d78da1346746f4ac58d42a7049a079"}'></script><!-- End Cloudflare Web Analytics -->
